@@ -38,7 +38,7 @@
 - **Fullscreen** — toggles browser fullscreen mode
 
 ### Persistence
-All state is saved to `localStorage` under the key `scorekeeper_v4`. Reloading the page restores the exact game in progress.
+All state is saved to `localStorage` under the key `scorekeeper`. Reloading the page restores the exact game in progress.
 
 ### Responsive Layout
 - Single column on mobile, 2-column at 600px+, 3-column at 900px+
