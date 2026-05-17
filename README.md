@@ -2,6 +2,8 @@
 
 🎲 A mobile-friendly, single-file scoreboard app for tracking scores during game nights. No install, no server — just open `index.html` in any browser.
 
+**Live demo:** https://death259.github.io/ScoreKeeper/
+
 ## Features
 
 ### Setup
@@ -46,7 +48,7 @@ All state is saved to `localStorage` under the key `scorekeeper`. Reloading the 
 
 ## Usage
 
-Open `index.html` directly in a browser — no build step or dependencies required. Works offline after the initial Google Fonts load.
+Visit the **[live demo](https://death259.github.io/ScoreKeeper/)** or open `index.html` directly in a browser — no build step or dependencies required. Works offline after the initial Google Fonts load.
 
 ## Tech Stack
 
