@@ -157,7 +157,7 @@
   /* Color picker swatch on team card */
   .color-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); cursor: pointer; flex-shrink: 0; transition: transform 0.15s, border-color 0.15s; display: inline-block; }
   .color-swatch:hover { transform: scale(1.2); border-color: rgba(255,255,255,0.7); }
-  .color-picker-popup { position: absolute; top: 44px; left: 16px; z-index: 50; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; gap: 8px; flex-wrap: wrap; width: 196px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); animation: slideUp 0.18s ease; }
+  .color-picker-popup { z-index: 500; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; gap: 8px; flex-wrap: wrap; width: 196px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); animation: slideUp 0.18s ease; }
   .cp-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.12s, border-color 0.12s; }
   .cp-swatch:hover { transform: scale(1.15); }
   .cp-swatch.active { border-color: #fff; }
@@ -383,7 +383,6 @@ function renderTeams() {
   for (var idx = 0; idx < S.teams.length; idx++) {
     (function(i){
       var team = S.teams[i];
-      // Support per-team color stored in state, fall back to default palette
       var color = team.color || COLORS[i % COLORS.length];
       var isLeader = team.score === maxScore && !tiedForLead && maxScore > 0;
       var isTied   = team.score === maxScore && tiedForLead;
@@ -397,7 +396,6 @@ function renderTeams() {
       var card = document.createElement('div');
       card.className = 'team-card' + (isLeader ? ' leader' : '');
       card.style.setProperty('--tc', color);
-      card.style.position = 'relative'; // ensure popup positions correctly
       card.innerHTML =
         '<div class="team-top">' +
           '<div class="team-name-wrap">' +
@@ -824,11 +822,10 @@ var COLOR_OPTIONS = [
   '#f72585','#3a86ff','#fb8500','#06d6a0','#ef476f','#118ab2',
   '#ffffff','#ffb3c1','#b5e48c','#ffc8dd'
 ];
+var colorPickerListener = null;
 
 function openColorPicker(teamIdx, swatchEl) {
-  // Close any open picker first
   closeColorPicker();
-  var card = swatchEl.closest('.team-card');
   var popup = document.createElement('div');
   popup.className = 'color-picker-popup';
   popup.id = 'color-popup';
@@ -847,16 +844,41 @@ function openColorPicker(teamIdx, swatchEl) {
     };
     popup.appendChild(sw);
   });
-  card.appendChild(popup);
-  // Close when clicking outside
+  // Mount to body with fixed positioning so overflow:hidden on the card never clips it
+  popup.style.visibility = 'hidden';
+  popup.style.position   = 'fixed';
+  popup.style.top        = '0';
+  popup.style.left       = '0';
+  document.body.appendChild(popup);
+  var rect    = swatchEl.getBoundingClientRect();
+  var popupH  = popup.offsetHeight;
+  var popupW  = popup.offsetWidth;
+  var top     = rect.bottom + 8;
+  var left    = rect.left;
+  // Flip above the swatch if too close to the bottom edge
+  if (top + popupH > window.innerHeight - 16) top = rect.top - popupH - 8;
+  // Keep within the right edge
+  if (left + popupW > window.innerWidth  -  8) left = window.innerWidth - popupW - 8;
+  popup.style.top        = Math.max(8, top)  + 'px';
+  popup.style.left       = Math.max(8, left) + 'px';
+  popup.style.visibility = '';
+  // Track listener by reference so we can remove it before adding a new one,
+  // preventing the previous once-listener from closing the freshly opened picker
+  colorPickerListener = function(e) {
+    if (!popup.contains(e.target) && e.target !== swatchEl) closeColorPicker();
+  };
   setTimeout(function() {
-    document.addEventListener('click', closeColorPicker, { once: true });
+    document.addEventListener('click', colorPickerListener);
   }, 10);
 }
 
 function closeColorPicker() {
   var p = document.getElementById('color-popup');
   if (p) p.remove();
+  if (colorPickerListener) {
+    document.removeEventListener('click', colorPickerListener);
+    colorPickerListener = null;
+  }
 }
 
 // ── SHARE / EXPORT ────────────────────────────────────────────
