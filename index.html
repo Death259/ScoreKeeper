@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Night Scoreboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e17; --surface: #1a1929; --surface2: #252438;
+    --accent: #ff6b35; --accent2: #ffd60a; --text: #fffffe;
+    --text-muted: #a7a9be; --border: rgba(255,255,255,0.08);
+    --danger: #e63946; --success: #2ecc71; --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 80px; background-image: radial-gradient(ellipse at 20% 20%, rgba(255,107,53,0.06) 0%, transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(76,201,240,0.05) 0%, transparent 60%); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; background: rgba(15,14,23,0.94); backdrop-filter: blur(12px); }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--accent); }
+  .header-actions { display: flex; gap: 8px; }
+  .btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:active { transform: scale(0.96); }
+  .btn-ghost  { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface); color: var(--text); }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-accent:hover { filter: brightness(1.1); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-success { background: var(--success); color: #111; }
+  .btn-sm   { font-size: 12px; padding: 5px 11px; }
+  .btn-full { width: 100%; justify-content: center; padding: 14px; font-size: 15px; }
+  #setup-screen { max-width: 480px; margin: 36px auto; padding: 0 20px; }
+  .setup-title { font-family: 'Bebas Neue', sans-serif; font-size: 48px; letter-spacing: 3px; line-height: 1; margin-bottom: 6px; }
+  .setup-title span { color: var(--accent); }
+  .setup-sub { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+  .setup-card { background: var(--surface); border-radius: var(--radius); padding: 22px; border: 1px solid var(--border); margin-bottom: 14px; }
+  .setup-label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; display: block; }
+  .game-name-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none; }
+  .game-name-input:focus { border-color: var(--accent); }
+  .team-count-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tc-btn { width: 48px; height: 48px; border-radius: 10px; border: 2px solid var(--border); background: var(--surface2); color: var(--text-muted); font-family: 'Bebas Neue', sans-serif; font-size: 22px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .tc-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.1); }
+  #game-screen { display: none; }
+  .tab-bar { display: flex; border-bottom: 1px solid var(--border); padding: 0 16px; background: var(--surface); }
+  .tab { padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .game-info-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .game-name-display { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1.5px; color: var(--accent2); }
+  .round-badge { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  .teams-grid { display: grid; gap: 12px; padding: 16px; }
+  @media (min-width: 600px) { .teams-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 900px) { .teams-grid { grid-template-columns: repeat(3, 1fr); } }
+  .team-card { background: var(--surface); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .team-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--tc, var(--accent)); border-radius: 4px 0 0 4px; }
+  .team-card.leader { border-color: rgba(255,214,10,0.4); }
+  .team-card.leader::after { content: '👑'; position: absolute; top: 12px; right: 14px; font-size: 18px; }
+  .team-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+  .team-name-wrap { flex: 1; }
+  .team-name { font-family: 'Bebas Neue', sans-serif; font-size: 23px; letter-spacing: 1px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .edit-hint { font-size: 11px; opacity: 0; transition: opacity 0.2s; }
+  .team-name:hover .edit-hint { opacity: 1; }
+  .team-name-input { font-family: 'Bebas Neue', sans-serif; font-size: 20px; background: var(--surface2); border: 1px solid var(--accent); border-radius: 6px; padding: 3px 8px; color: var(--text); letter-spacing: 1px; width: 160px; outline: none; }
+  .team-score { font-family: 'Bebas Neue', sans-serif; font-size: 52px; line-height: 1; margin-right: 36px; }
+  .score-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .score-input { width: 60px; text-align: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; outline: none; }
+  .score-input:focus { border-color: var(--accent); }
+  .score-history { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .score-pip { font-size: 11px; padding: 2px 7px; border-radius: 20px; background: var(--surface2); color: var(--text-muted); font-weight: 500; }
+  .score-pip.pos { color: var(--success); }
+  .score-pip.neg { color: var(--danger); }
+  .bottom-actions { position: sticky; bottom: 0; background: rgba(15,14,23,0.95); backdrop-filter: blur(12px); border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 8px; }
+  .bottom-actions .btn { flex: 1; justify-content: center; }
+  .hof-wrap { padding: 0 16px 20px; }
+  .hof-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 2px; padding: 20px 0 14px; color: var(--accent2); }
+  .game-record { background: var(--surface); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); margin-bottom: 10px; }
+  .gr-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .gr-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; }
+  .gr-date { font-size: 12px; color: var(--text-muted); }
+  .gr-winner { font-size: 13px; font-weight: 600; color: var(--accent2); margin-bottom: 8px; }
+  .gr-standings { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .standing-chip { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: var(--surface2); color: var(--text-muted); }
+  .standing-chip.first { background: rgba(255,214,10,0.15); color: var(--accent2); }
+  .no-hof { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .no-hof .icon { font-size: 48px; margin-bottom: 12px; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(4px); z-index: 200; align-items: flex-end; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 20px 20px 14px 14px; padding: 24px; width: 100%; max-width: 420px; border: 1px solid var(--border); animation: slideUp 0.22s ease; }
+  @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 1px; margin-bottom: 8px; }
+  .modal-body { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .btn { flex: 1; justify-content: center; padding: 13px; }
+  .toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--surface2); border: 1px solid var(--border); border-radius: 30px; padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.25s; z-index: 300; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Timer */
+  .timer-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px; }
+  .timer-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .timer-preset-btn { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+  .timer-preset-btn:hover, .timer-preset-btn.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .timer-main { display: flex; align-items: center; gap: 12px; }
+  .timer-display { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 3px; line-height: 1; min-width: 120px; transition: color 0.3s; }
+  .timer-display.warning { color: var(--accent2); }
+  .timer-display.danger  { color: var(--danger); animation: pulse 0.6s infinite alternate; }
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
+  .timer-controls { display: flex; gap: 8px; flex: 1; justify-content: flex-end; flex-wrap: wrap; }
+  .timer-track { width: 100%; height: 4px; background: var(--surface2); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+  .timer-track-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s linear, background 0.3s; }
+  .timer-custom-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .timer-custom-input { width: 64px; text-align: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; outline: none; }
+  .timer-custom-input:focus { border-color: var(--accent); }
+
+  /* Win counts in HOF */
+  .win-counts { background: var(--surface2); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); }
+  .win-counts-title { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+  .win-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .win-row:last-child { margin-bottom: 0; }
+  .win-name { font-weight: 600; font-size: 14px; flex: 1; }
+  .win-bar-wrap { flex: 2; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .win-bar { height: 100%; background: var(--accent2); border-radius: 4px; transition: width 0.4s ease; }
+  .win-count { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--accent2); min-width: 28px; text-align: right; }
+
+  /* Fullscreen button */
+  .btn-fs { font-size: 16px; padding: 6px 10px; line-height: 1; }
+  :fullscreen header, :-webkit-full-screen header, :-moz-full-screen header { position: sticky; }
+
+  /* Landscape layout — timer + teams side by side */
+  @media (orientation: landscape) and (max-height: 500px) {
+    body { padding-bottom: 60px; }
+    .timer-bar { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 16px; padding: 8px 16px; }
+    .timer-presets { margin-bottom: 6px; }
+    .timer-custom-row { margin-bottom: 6px; grid-column: 1; }
+    .timer-main { grid-column: 1; }
+    .timer-track { grid-column: 1 / -1; margin-top: 6px; }
+    .timer-display { font-size: 38px; min-width: 90px; }
+    .teams-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 8px; padding: 8px; }
+    .team-card { padding: 10px 12px; }
+    .team-score { font-size: 38px; }
+    .team-name { font-size: 18px; }
+    .bottom-actions { padding: 8px 12px; }
+    .game-info-bar { padding: 8px 16px; }
+    header { padding: 10px 20px; }
+  }
+
+  /* Confetti canvas */
+  #confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 400; }
+
+  /* Tie badge */
+  .tie-badge { display: inline-block; background: rgba(76,201,240,0.15); color: #4cc9f0; border: 1px solid rgba(76,201,240,0.4); border-radius: 20px; font-size: 11px; font-weight: 700; padding: 2px 10px; letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
+
+  /* Leader banner */
+  .leader-banner { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border); background: rgba(255,214,10,0.06); transition: opacity 0.3s; }
+  .leader-banner .lb-crown { font-size: 18px; }
+  .leader-banner .lb-name  { color: var(--accent2); }
+  .leader-banner .lb-score { color: var(--text-muted); font-weight: 400; font-size: 12px; }
+  .leader-banner.tie-mode  { background: rgba(76,201,240,0.06); }
+  .leader-banner.tie-mode .lb-name { color: #4cc9f0; }
+
+  /* Color picker swatch on team card */
+  .color-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); cursor: pointer; flex-shrink: 0; transition: transform 0.15s, border-color 0.15s; display: inline-block; }
+  .color-swatch:hover { transform: scale(1.2); border-color: rgba(255,255,255,0.7); }
+  .color-picker-popup { position: absolute; top: 44px; left: 16px; z-index: 50; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; gap: 8px; flex-wrap: wrap; width: 196px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); animation: slideUp 0.18s ease; }
+  .cp-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.12s, border-color 0.12s; }
+  .cp-swatch:hover { transform: scale(1.15); }
+  .cp-swatch.active { border-color: #fff; }
+
+  /* Share modal content */
+  .share-text { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; line-height: 1.6; resize: none; outline: none; margin-bottom: 12px; }
+  .share-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .share-actions .btn { flex: 1; justify-content: center; }
+</style>
+</head>
+<body>
+<canvas id="confetti-canvas" style="display:none"></canvas>
+<header>
+  <div class="logo">🎲 Scorekeeper</div>
+  <div class="header-actions" id="hdr-actions"></div>
+</header>
+
+<div id="setup-screen">
+  <h1 class="setup-title">Game<br><span>Night</span></h1>
+  <p class="setup-sub">Set up your teams and start tracking scores.</p>
+  <div class="setup-card">
+    <span class="setup-label">Game Name</span>
+    <input class="game-name-input" id="game-name-input" placeholder="e.g. Charades, Trivia Night…" maxlength="40">
+  </div>
+  <div class="setup-card">
+    <span class="setup-label">Number of Teams</span>
+    <div class="team-count-row" id="tc-row"></div>
+  </div>
+  <button class="btn btn-accent btn-full" onclick="startGame()">▶ Start Game</button>
+  <div id="setup-hof"></div>
+</div>
+
+<div id="game-screen">
+  <div class="tab-bar">
+    <div class="tab active" id="tab-scores" onclick="showTab('scores')">Scoreboard</div>
+    <div class="tab"        id="tab-hof"    onclick="showTab('hof')">Hall of Fame</div>
+  </div>
+  <div id="panel-scores">
+    <div class="game-info-bar">
+      <div class="game-name-display" id="cur-game-name"></div>
+      <div class="round-badge" id="cur-round"></div>
+    </div>
+    <div class="leader-banner" id="leader-banner" style="display:none">
+      <span class="lb-crown" id="lb-crown">👑</span>
+      <span class="lb-name"  id="lb-name"></span>
+      <span class="lb-score" id="lb-score"></span>
+    </div>
+
+    <!-- Timer -->
+    <div class="timer-bar">
+      <div class="timer-presets" id="timer-presets"></div>
+      <div class="timer-custom-row">
+        <input class="timer-custom-input" id="timer-custom-min" type="number" min="0" max="99" value="1" placeholder="m">
+        <span style="color:var(--text-muted);font-size:13px">min</span>
+        <input class="timer-custom-input" id="timer-custom-sec" type="number" min="0" max="59" value="30" placeholder="s">
+        <span style="color:var(--text-muted);font-size:13px">sec</span>
+        <button class="btn btn-ghost btn-sm" onclick="setCustomTimer()">Set</button>
+      </div>
+      <div class="timer-main">
+        <div class="timer-display" id="timer-display">1:30</div>
+        <div class="timer-controls">
+          <button class="btn btn-accent btn-sm" id="timer-start-btn" onclick="timerStartStop()">▶ Start</button>
+          <button class="btn btn-ghost  btn-sm" onclick="timerReset()">↺ Reset</button>
+        </div>
+      </div>
+      <div class="timer-track"><div class="timer-track-fill" id="timer-fill" style="width:100%"></div></div>
+    </div>
+    <div class="teams-grid" id="teams-grid"></div>
+    <div class="bottom-actions">
+      <button class="btn btn-ghost"   onclick="confirmAction('reset')">↺ Reset</button>
+      <button class="btn btn-ghost"   onclick="openShareModal()">↗ Share</button>
+      <button class="btn btn-success" onclick="confirmAction('end')">🏆 End Game</button>
+    </div>
+  </div>
+  <div id="panel-hof" style="display:none">
+    <div class="hof-wrap" id="hof-content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body"  id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" id="modal-ok" onclick="runModalAction()"></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="share-modal" onclick="handleShareOverlay(event)">
+  <div class="modal" style="max-height:80vh;overflow-y:auto">
+    <div class="modal-title">↗ Share Results</div>
+    <textarea class="share-text" id="share-text" rows="10" readonly></textarea>
+    <div class="share-actions">
+      <button class="btn btn-ghost"  onclick="closeShareModal()">Close</button>
+      <button class="btn btn-accent" onclick="copyShareText()">📋 Copy</button>
+      <button class="btn btn-ghost"  id="share-native-btn" onclick="nativeShare()" style="display:none">↗ Share</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var LS_KEY = 'scorekeeper_v4';
+var COLORS = ['#ff6b35','#ffd60a','#4cc9f0','#a855f7','#2ecc71','#e63946','#f72585','#3a86ff'];
+var DEFAULT_NAMES = ['Team Alpha','Team Bravo','Team Charlie','Team Delta','Team Echo','Team Foxtrot','Team Golf','Team Hotel'];
+
+// State — the only data that matters
+var S = { view:'setup', gameName:'', teams:[], round:1, gameHistory:[] };
+var teamCount = 4;
+var modalAction = null;
+var toastTimer = null;
+
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch(e) {}
+}
+
+function load() {
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    var p = JSON.parse(raw);
+    S.view        = p.view        || 'setup';
+    S.gameName    = p.gameName    || '';
+    S.teams       = Array.isArray(p.teams)       ? p.teams       : [];
+    S.round       = p.round       || 1;
+    S.gameHistory = Array.isArray(p.gameHistory) ? p.gameHistory : [];
+  } catch(e) { console.warn('load error', e); }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2400);
+}
+
+function init() {
+  load();
+  buildTCButtons();
+  if (S.view === 'game' && S.teams.length > 0) {
+    renderGameScreen();
+  } else {
+    S.view = 'setup';
+    renderSetupScreen();
+  }
+}
+
+function buildTCButtons() {
+  var row = document.getElementById('tc-row');
+  row.innerHTML = '';
+  for (var n = 2; n <= 8; n++) {
+    (function(num){
+      var b = document.createElement('button');
+      b.className = 'tc-btn' + (num === teamCount ? ' active' : '');
+      b.textContent = num;
+      b.onclick = function(){ teamCount = num; buildTCButtons(); };
+      row.appendChild(b);
+    })(n);
+  }
+}
+
+function renderSetupScreen() {
+  document.getElementById('setup-screen').style.display = 'block';
+  document.getElementById('game-screen').style.display  = 'none';
+  document.getElementById('hdr-actions').innerHTML = '';
+  renderSetupHOF();
+}
+
+function renderSetupHOF() {
+  var el = document.getElementById('setup-hof');
+  if (!S.gameHistory || !S.gameHistory.length) { el.innerHTML = ''; return; }
+  var html = '<h2 class="hof-title" style="padding-top:28px">Hall of Fame</h2>';
+  html += winCountsHTML();
+  for (var i = 0; i < S.gameHistory.length; i++) {
+    html += gameRecordHTML(S.gameHistory[i], i, 'deleteFromSetup');
+  }
+  el.innerHTML = html;
+}
+
+function startGame() {
+  var name = document.getElementById('game-name-input').value.trim() || 'Game Night';
+  S.view     = 'game';
+  S.gameName = name;
+  S.round    = 1;
+  // IMPORTANT: gameHistory is preserved — only teams reset
+  S.teams = [];
+  for (var i = 0; i < teamCount; i++) {
+    S.teams.push({ name: DEFAULT_NAMES[i], score: 0, history: [], color: COLORS[i % COLORS.length] });
+  }
+  save();
+  renderGameScreen();
+}
+
+function renderGameScreen() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display  = 'block';
+  document.getElementById('hdr-actions').innerHTML =
+    '<button class="btn btn-ghost btn-sm btn-fs" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="confirmAction(\'newgame\')">+ New Game</button>';
+  document.getElementById('cur-game-name').textContent = S.gameName;
+  document.getElementById('cur-round').textContent     = 'Round ' + S.round;
+  renderTeams();
+  renderHOF();
+  buildTimerPresets();
+  updateTimerDisplay();
+  showTab('scores');
+}
+
+function renderTeams() {
+  var grid = document.getElementById('teams-grid');
+  grid.innerHTML = '';
+  var scores = S.teams.map(function(t){ return t.score; });
+  var maxScore = Math.max.apply(null, scores);
+  var tiedForLead = maxScore > 0 && scores.filter(function(s){ return s === maxScore; }).length > 1;
+
+  for (var idx = 0; idx < S.teams.length; idx++) {
+    (function(i){
+      var team = S.teams[i];
+      // Support per-team color stored in state, fall back to default palette
+      var color = team.color || COLORS[i % COLORS.length];
+      var isLeader = team.score === maxScore && !tiedForLead && maxScore > 0;
+      var isTied   = team.score === maxScore && tiedForLead;
+      var histHTML = '';
+      var hist = team.history.slice(-8);
+      for (var h = 0; h < hist.length; h++) {
+        var v = hist[h];
+        histHTML += '<span class="score-pip ' + (v>0?'pos':'neg') + '">' + (v>0?'+':'') + v + '</span>';
+      }
+      var tieBadge = isTied ? '<span class="tie-badge">TIE</span>' : '';
+      var card = document.createElement('div');
+      card.className = 'team-card' + (isLeader ? ' leader' : '');
+      card.style.setProperty('--tc', color);
+      card.style.position = 'relative'; // ensure popup positions correctly
+      card.innerHTML =
+        '<div class="team-top">' +
+          '<div class="team-name-wrap">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+              '<div class="color-swatch" style="background:'+color+'" onclick="openColorPicker('+i+', this)" title="Change color"></div>' +
+              '<div class="team-name" id="tname-'+i+'" onclick="editName('+i+')">' +
+                '<span>'+esc(team.name)+'</span>' + tieBadge + '<span class="edit-hint">&#9999;&#65039;</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="team-score" style="color:'+color+'">'+team.score+'</div>' +
+        '</div>' +
+        '<div class="score-controls">' +
+          '<input class="score-input" id="sinput-'+i+'" type="number" value="1" min="-999" max="999">' +
+          '<button class="btn btn-accent btn-sm" onclick="addScore('+i+',1)">+ Add</button>' +
+          '<button class="btn btn-ghost  btn-sm" onclick="addScore('+i+',-1)">- Sub</button>' +
+          '<button class="btn btn-ghost  btn-sm" onclick="undoScore('+i+')" title="Undo">&#8617;</button>' +
+        '</div>' +
+        '<div class="score-history">'+histHTML+'</div>';
+      grid.appendChild(card);
+    })(idx);
+  }
+  updateLeaderBanner(maxScore, tiedForLead);
+}
+
+function addScore(idx, dir) {
+  var val = parseInt(document.getElementById('sinput-'+idx).value) || 0;
+  var delta = val * dir;
+  if (delta === 0) return;
+  S.teams[idx].score += delta;
+  S.teams[idx].history.push(delta);
+  S.round++;
+  document.getElementById('cur-round').textContent = 'Round ' + S.round;
+  save();
+  renderTeams();
+  toast(S.teams[idx].name + ': ' + (delta > 0 ? '+' : '') + delta);
+}
+
+function undoScore(idx) {
+  if (!S.teams[idx].history.length) { toast('Nothing to undo'); return; }
+  var last = S.teams[idx].history.pop();
+  S.teams[idx].score -= last;
+  save();
+  renderTeams();
+  toast('Undone: ' + (last > 0 ? '+' : '') + last);
+}
+
+function editName(idx) {
+  var wrap = document.getElementById('tname-'+idx);
+  wrap.innerHTML = '<input class="team-name-input" id="nedit-'+idx+'" value="'+esc(S.teams[idx].name)+'" maxlength="20" onblur="saveName('+idx+')" onkeydown="if(event.key===\'Enter\')saveName('+idx+')">';
+  var inp = document.getElementById('nedit-'+idx);
+  inp.focus(); inp.select();
+}
+
+function saveName(idx) {
+  var inp = document.getElementById('nedit-'+idx);
+  if (!inp) return;
+  var v = inp.value.trim();
+  if (v) S.teams[idx].name = v;
+  save();
+  renderTeams();
+}
+
+function showTab(tab) {
+  document.getElementById('panel-scores').style.display = tab === 'scores' ? 'block' : 'none';
+  document.getElementById('panel-hof').style.display    = tab === 'hof'    ? 'block' : 'none';
+  document.getElementById('tab-scores').className = 'tab' + (tab === 'scores' ? ' active' : '');
+  document.getElementById('tab-hof').className    = 'tab' + (tab === 'hof'    ? ' active' : '');
+}
+
+function renderHOF() {
+  var el = document.getElementById('hof-content');
+  if (!S.gameHistory || !S.gameHistory.length) {
+    el.innerHTML = '<div class="no-hof"><div class="icon">&#127885;</div><p>No completed games yet.<br>End a game to record a winner!</p></div>';
+    return;
+  }
+  var html = '<h2 class="hof-title">Hall of Fame</h2>';
+  html += winCountsHTML();
+  for (var i = 0; i < S.gameHistory.length; i++) {
+    html += gameRecordHTML(S.gameHistory[i], i, 'deleteFromGame');
+  }
+  el.innerHTML = html;
+}
+
+function gameRecordHTML(g, i, deleteFn) {
+  var chips = '';
+  for (var si = 0; si < g.standings.length; si++) {
+    var s = g.standings[si];
+    chips += '<span class="standing-chip' + (si===0?' first':'') + '">' + (si===0?(g.isTie?'🤝 ':'🥇 '):'') + esc(s.name) + ': ' + s.score + '</span>';
+  }
+  var winnerLine = g.isTie
+    ? '🤝 <span style="color:#4cc9f0">Tie — ' + esc(g.winner) + ' — ' + g.winnerScore + ' pts</span>'
+    : '🏆 ' + esc(g.winner) + ' &mdash; ' + g.winnerScore + ' pts';
+  return '<div class="game-record">' +
+    '<div class="gr-header"><div class="gr-name">'+esc(g.name)+'</div><div class="gr-date">'+esc(g.date)+'</div></div>' +
+    '<div class="gr-winner">' + winnerLine + '</div>' +
+    '<div class="gr-standings">'+chips+'</div>' +
+    '<div style="text-align:right"><button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="'+deleteFn+'('+i+')">&#128465; Delete</button></div>' +
+    '</div>';
+}
+
+function deleteFromGame(i) { S.gameHistory.splice(i,1); save(); renderHOF(); toast('Record deleted'); }
+function deleteFromSetup(i) { S.gameHistory.splice(i,1); save(); renderSetupHOF(); toast('Record deleted'); }
+
+function endGame() {
+  closeModal();
+  var sorted = S.teams.slice().sort(function(a,b){ return b.score - a.score; });
+  var topScore = sorted[0].score;
+  var winners  = sorted.filter(function(t){ return t.score === topScore; });
+  var isTie    = winners.length > 1;
+
+  var record = {
+    name:        S.gameName,
+    date:        new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+    winner:      isTie ? winners.map(function(t){ return t.name; }).join(' & ') : sorted[0].name,
+    winnerScore: topScore,
+    isTie:       isTie,
+    standings:   sorted.map(function(t){ return {name:t.name, score:t.score}; })
+  };
+  S.gameHistory.unshift(record);
+  S.teams.forEach(function(t){ t.score=0; t.history=[]; });
+  S.round = 1;
+  save();
+  document.getElementById('cur-round').textContent = 'Round 1';
+  renderTeams();
+  renderHOF();
+  showTab('hof');
+  if (isTie) {
+    toast('🤝 It\'s a tie — ' + record.winner + '!');
+    launchConfetti(['#4cc9f0','#a855f7','#fffffe','#ffd60a']);
+  } else {
+    toast('🏆 ' + record.winner + ' wins!');
+    launchConfetti(null);
+  }
+}
+
+function resetGame() {
+  closeModal();
+  S.teams.forEach(function(t){ t.score=0; t.history=[]; });
+  S.round = 1;
+  save();
+  renderTeams();
+  document.getElementById('cur-round').textContent = 'Round 1';
+  toast('Scores reset!');
+}
+
+function goToSetup() {
+  closeModal();
+  var history = S.gameHistory; // hold reference
+  S.view = 'setup'; S.gameName = ''; S.teams = []; S.round = 1;
+  S.gameHistory = history;     // put it back
+  save();
+  document.getElementById('game-name-input').value = '';
+  renderSetupScreen();
+}
+
+var MODAL_CONFIGS = {
+  reset:   { title:'Reset Scores?',   body:'All current scores will be wiped. This cannot be undone.',                                  label:'Reset',       cls:'btn-danger',  action:resetGame },
+  end:     { title:'End Game?',        body:'Winner is saved to Hall of Fame and scores reset for a new round.',                          label:'End Game',    cls:'btn-success', action:endGame   },
+  newgame: { title:'New Game?',        body:'Return to setup to pick teams and a new game name. Current scores will be lost.',            label:'Go to Setup', cls:'btn-accent',  action:goToSetup }
+};
+
+function confirmAction(type) {
+  var cfg = MODAL_CONFIGS[type];
+  document.getElementById('modal-title').textContent = cfg.title;
+  document.getElementById('modal-body').textContent  = cfg.body;
+  var ok = document.getElementById('modal-ok');
+  ok.textContent = cfg.label;
+  ok.className   = 'btn ' + cfg.cls;
+  modalAction = cfg.action;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); modalAction = null; }
+function runModalAction() { if (modalAction) modalAction(); }
+function handleOverlayClick(e) { if (e.target === document.getElementById('modal')) closeModal(); }
+
+// ── TIMER ─────────────────────────────────────────────────────
+var TIMER_PRESETS = [
+  { label: '30s',  secs: 30  },
+  { label: '1m',   secs: 60  },
+  { label: '1:30', secs: 90  },
+  { label: '2m',   secs: 120 },
+  { label: '3m',   secs: 180 }
+];
+var timerTotal    = 90;
+var timerLeft     = 90;
+var timerRunning  = false;
+var timerInterval = null;
+var timerSelIdx   = 2; // default 1:30
+
+function buildTimerPresets() {
+  var row = document.getElementById('timer-presets');
+  if (!row) return;
+  row.innerHTML = '';
+  TIMER_PRESETS.forEach(function(p, i) {
+    var b = document.createElement('button');
+    b.className = 'timer-preset-btn' + (i === timerSelIdx ? ' sel' : '');
+    b.textContent = p.label;
+    b.onclick = function() {
+      timerSelIdx = i;
+      timerStop();
+      timerTotal = p.secs;
+      timerLeft  = p.secs;
+      buildTimerPresets();
+      updateTimerDisplay();
+    };
+    row.appendChild(b);
+  });
+}
+
+function setCustomTimer() {
+  var m = parseInt(document.getElementById('timer-custom-min').value) || 0;
+  var s = parseInt(document.getElementById('timer-custom-sec').value) || 0;
+  var total = m * 60 + s;
+  if (total <= 0) return;
+  timerStop();
+  timerTotal   = total;
+  timerLeft    = total;
+  timerSelIdx  = -1;
+  buildTimerPresets();
+  updateTimerDisplay();
+}
+
+function fmtTime(secs) {
+  var m = Math.floor(secs / 60);
+  var s = secs % 60;
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function updateTimerDisplay() {
+  var el   = document.getElementById('timer-display');
+  var fill = document.getElementById('timer-fill');
+  if (!el) return;
+  el.textContent = fmtTime(timerLeft);
+  var pct = timerTotal > 0 ? (timerLeft / timerTotal) * 100 : 100;
+  if (fill) {
+    fill.style.width = pct + '%';
+    fill.style.background = timerLeft <= 10 ? 'var(--danger)' : timerLeft <= 30 ? 'var(--accent2)' : 'var(--accent)';
+  }
+  el.className = 'timer-display' + (timerLeft <= 10 ? ' danger' : timerLeft <= 30 ? ' warning' : '');
+}
+
+function timerTick() {
+  if (timerLeft <= 0) {
+    timerStop();
+    buzzTimer();
+    return;
+  }
+  timerLeft--;
+  updateTimerDisplay();
+}
+
+function timerStartStop() {
+  if (timerRunning) { timerStop(); } else { timerStart(); }
+}
+
+function timerStart() {
+  if (timerLeft <= 0) timerLeft = timerTotal;
+  timerRunning = true;
+  timerInterval = setInterval(timerTick, 1000);
+  var btn = document.getElementById('timer-start-btn');
+  if (btn) { btn.textContent = '⏸ Pause'; btn.className = 'btn btn-ghost btn-sm'; }
+}
+
+function timerStop() {
+  timerRunning = false;
+  clearInterval(timerInterval);
+  var btn = document.getElementById('timer-start-btn');
+  if (btn) { btn.textContent = '▶ Start'; btn.className = 'btn btn-accent btn-sm'; }
+}
+
+function timerReset() {
+  timerStop();
+  stopAlarm();
+  timerLeft = timerTotal;
+  updateTimerDisplay();
+}
+
+var alarmCtx      = null;
+var alarmRunning  = false;
+var alarmTimeout  = null;
+
+function buzzTimer() {
+  updateTimerDisplay();
+  showAlarmBanner();
+  playAlarmLoop();
+}
+
+function playAlarmLoop() {
+  if (!alarmRunning) return;
+  try {
+    if (!alarmCtx) alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var ctx = alarmCtx;
+    var now = ctx.currentTime;
+    // Three sharp beeps per cycle: high-low-high pattern
+    var beeps = [
+      { freq: 1046, start: 0,    dur: 0.18 },
+      { freq: 784,  start: 0.22, dur: 0.12 },
+      { freq: 1046, start: 0.38, dur: 0.18 },
+      { freq: 1046, start: 0.6,  dur: 0.18 },
+      { freq: 784,  start: 0.82, dur: 0.12 },
+      { freq: 1046, start: 0.98, dur: 0.18 }
+    ];
+    beeps.forEach(function(b) {
+      var osc  = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'square';
+      osc.frequency.value = b.freq;
+      gain.gain.setValueAtTime(0, now + b.start);
+      gain.gain.linearRampToValueAtTime(0.55, now + b.start + 0.01);
+      gain.gain.setValueAtTime(0.55, now + b.start + b.dur - 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + b.start + b.dur);
+      osc.start(now + b.start);
+      osc.stop(now + b.start + b.dur + 0.01);
+    });
+    // Repeat every 1.4 seconds
+    alarmTimeout = setTimeout(function() {
+      if (alarmRunning) playAlarmLoop();
+    }, 1400);
+  } catch(e) { console.warn('Audio error', e); }
+}
+
+function stopAlarm() {
+  alarmRunning = false;
+  clearTimeout(alarmTimeout);
+  hideAlarmBanner();
+}
+
+function showAlarmBanner() {
+  alarmRunning = true;
+  var existing = document.getElementById('alarm-banner');
+  if (existing) return;
+  var banner = document.createElement('div');
+  banner.id = 'alarm-banner';
+  banner.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:500',
+    'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
+    'background:rgba(15,14,23,0.93)', 'backdrop-filter:blur(6px)',
+    'animation:alarmPulse 0.7s ease-in-out infinite alternate'
+  ].join(';');
+  banner.innerHTML =
+    '<div style="font-size:72px;margin-bottom:16px">⏰</div>' +
+    '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:48px;letter-spacing:3px;color:#e63946;margin-bottom:8px">TIME\'S UP!</div>' +
+    '<div style="font-size:14px;color:#a7a9be;margin-bottom:32px">Tap below to stop the alarm</div>' +
+    '<button onclick="stopAlarm()" style="font-family:\'DM Sans\',sans-serif;font-size:16px;font-weight:700;padding:16px 40px;border-radius:12px;border:none;background:#e63946;color:#fff;cursor:pointer;letter-spacing:0.5px">Stop Alarm</button>';
+  document.body.appendChild(banner);
+
+  // Inject pulse keyframe if not already present
+  if (!document.getElementById('alarm-style')) {
+    var st = document.createElement('style');
+    st.id = 'alarm-style';
+    st.textContent = '@keyframes alarmPulse { from { background: rgba(15,14,23,0.93); } to { background: rgba(80,0,0,0.93); } }';
+    document.head.appendChild(st);
+  }
+}
+
+function hideAlarmBanner() {
+  var banner = document.getElementById('alarm-banner');
+  if (banner) banner.remove();
+}
+
+// ── WIN COUNTS ────────────────────────────────────────────────
+function computeWinCounts() {
+  var counts = {};
+  S.gameHistory.forEach(function(g) {
+    var w = g.winner;
+    counts[w] = (counts[w] || 0) + 1;
+  });
+  // Sort descending
+  var sorted = Object.keys(counts).map(function(name) {
+    return { name: name, wins: counts[name] };
+  }).sort(function(a, b) { return b.wins - a.wins; });
+  return sorted;
+}
+
+function winCountsHTML() {
+  var counts = computeWinCounts();
+  if (!counts.length) return '';
+  var maxWins = counts[0].wins;
+  var rows = counts.map(function(c) {
+    var pct = maxWins > 0 ? (c.wins / maxWins) * 100 : 0;
+    return '<div class="win-row">' +
+      '<div class="win-name">' + esc(c.name) + '</div>' +
+      '<div class="win-bar-wrap"><div class="win-bar" style="width:' + pct + '%"></div></div>' +
+      '<div class="win-count">' + c.wins + '</div>' +
+      '</div>';
+  }).join('');
+  return '<div class="win-counts">' +
+    '<div class="win-counts-title">&#127942; All-Time Wins</div>' +
+    rows +
+    '</div>';
+}
+
+// ── LEADER BANNER ─────────────────────────────────────────────
+function updateLeaderBanner(maxScore, tiedForLead) {
+  var banner = document.getElementById('leader-banner');
+  if (!banner) return;
+  if (!maxScore || maxScore <= 0) { banner.style.display = 'none'; return; }
+  banner.style.display = 'flex';
+
+  if (tiedForLead) {
+    var tiedTeams = S.teams.filter(function(t){ return t.score === maxScore; });
+    var names = tiedTeams.map(function(t){ return t.name; }).join(' & ');
+    banner.className = 'leader-banner tie-mode';
+    document.getElementById('lb-crown').textContent = '🤝';
+    document.getElementById('lb-name').textContent  = names + ' are tied';
+    document.getElementById('lb-score').textContent = '— ' + maxScore + ' pts each';
+  } else {
+    var leader = S.teams.filter(function(t){ return t.score === maxScore; })[0];
+    var second = S.teams.slice().sort(function(a,b){ return b.score - a.score; })[1];
+    var gap = second ? (maxScore - second.score) : maxScore;
+    banner.className = 'leader-banner';
+    document.getElementById('lb-crown').textContent = '👑';
+    document.getElementById('lb-name').textContent  = leader.name + ' is winning';
+    document.getElementById('lb-score').textContent = '— ' + maxScore + ' pts' + (gap > 0 ? ' (+' + gap + ')' : '');
+  }
+}
+
+// ── COLOR PICKER ──────────────────────────────────────────────
+var COLOR_OPTIONS = [
+  '#ff6b35','#ffd60a','#4cc9f0','#a855f7','#2ecc71','#e63946',
+  '#f72585','#3a86ff','#fb8500','#06d6a0','#ef476f','#118ab2',
+  '#ffffff','#ffb3c1','#b5e48c','#ffc8dd'
+];
+
+function openColorPicker(teamIdx, swatchEl) {
+  // Close any open picker first
+  closeColorPicker();
+  var card = swatchEl.closest('.team-card');
+  var popup = document.createElement('div');
+  popup.className = 'color-picker-popup';
+  popup.id = 'color-popup';
+  var currentColor = S.teams[teamIdx].color || COLORS[teamIdx % COLORS.length];
+  COLOR_OPTIONS.forEach(function(c) {
+    var sw = document.createElement('div');
+    sw.className = 'cp-swatch' + (c === currentColor ? ' active' : '');
+    sw.style.background = c;
+    sw.title = c;
+    sw.onclick = function(e) {
+      e.stopPropagation();
+      S.teams[teamIdx].color = c;
+      save();
+      closeColorPicker();
+      renderTeams();
+    };
+    popup.appendChild(sw);
+  });
+  card.appendChild(popup);
+  // Close when clicking outside
+  setTimeout(function() {
+    document.addEventListener('click', closeColorPicker, { once: true });
+  }, 10);
+}
+
+function closeColorPicker() {
+  var p = document.getElementById('color-popup');
+  if (p) p.remove();
+}
+
+// ── SHARE / EXPORT ────────────────────────────────────────────
+function buildShareText() {
+  var lines = [];
+  lines.push('🎲 ' + S.gameName + ' — Current Scores');
+  lines.push('Round ' + S.round);
+  lines.push('');
+  var sorted = S.teams.slice().sort(function(a,b){ return b.score - a.score; });
+  var medals = ['🥇','🥈','🥉'];
+  sorted.forEach(function(t, i) {
+    lines.push((medals[i] || ('  ' + (i+1) + '.')) + ' ' + t.name + ': ' + t.score + ' pts');
+  });
+  if (S.gameHistory && S.gameHistory.length) {
+    lines.push('');
+    lines.push('━━━ Hall of Fame ━━━');
+    S.gameHistory.slice(0, 5).forEach(function(g) {
+      var prefix = g.isTie ? '🤝' : '🏆';
+      lines.push(prefix + ' ' + g.name + ' (' + g.date + '): ' + g.winner + ' — ' + g.winnerScore + ' pts');
+    });
+  }
+  lines.push('');
+  lines.push('Tracked with 🎲 Scorekeeper');
+  return lines.join('\n');
+}
+
+function openShareModal() {
+  var text = buildShareText();
+  document.getElementById('share-text').value = text;
+  var nativeBtn = document.getElementById('share-native-btn');
+  nativeBtn.style.display = navigator.share ? 'inline-flex' : 'none';
+  document.getElementById('share-modal').classList.add('open');
+}
+
+function closeShareModal() {
+  document.getElementById('share-modal').classList.remove('open');
+}
+
+function handleShareOverlay(e) {
+  if (e.target === document.getElementById('share-modal')) closeShareModal();
+}
+
+function copyShareText() {
+  var text = document.getElementById('share-text').value;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      toast('📋 Copied to clipboard!');
+      closeShareModal();
+    }).catch(function() { fallbackCopy(text); });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.getElementById('share-text');
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('📋 Copied!');
+    closeShareModal();
+  } catch(e) { toast('Select the text and copy manually'); }
+}
+
+function nativeShare() {
+  var text = document.getElementById('share-text').value;
+  navigator.share({ title: S.gameName + ' Scores', text: text })
+    .then(function(){ closeShareModal(); })
+    .catch(function(){});
+}
+
+// ── FULLSCREEN ────────────────────────────────────────────────
+function toggleFullscreen() {
+  var el  = document.documentElement;
+  var btn = document.querySelector('.btn-fs');
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || function(){}).call(el);
+    if (btn) btn.textContent = '✕';
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || function(){}).call(document);
+    if (btn) btn.textContent = '⛶';
+  }
+}
+document.addEventListener('fullscreenchange',       updateFsBtn);
+document.addEventListener('webkitfullscreenchange', updateFsBtn);
+function updateFsBtn() {
+  var btn = document.querySelector('.btn-fs');
+  if (!btn) return;
+  btn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? '✕' : '⛶';
+}
+
+// ── CONFETTI ──────────────────────────────────────────────────
+var confettiAnim = null;
+var CONFETTI_COLORS = ['#ff6b35','#ffd60a','#4cc9f0','#a855f7','#2ecc71','#e63946','#f72585','#3a86ff'];
+
+function launchConfetti(colors) {
+  var canvas = document.getElementById('confetti-canvas');
+  canvas.style.display = 'block';
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  var ctx = canvas.getContext('2d');
+  var palette = colors || CONFETTI_COLORS;
+  var pieces = [];
+  var count  = Math.min(180, Math.floor(window.innerWidth * 0.25));
+
+  for (var i = 0; i < count; i++) {
+    pieces.push({
+      x:    Math.random() * canvas.width,
+      y:    -20 - Math.random() * canvas.height * 0.5,
+      w:    6 + Math.random() * 8,
+      h:    10 + Math.random() * 6,
+      r:    Math.random() * Math.PI * 2,
+      dr:   (Math.random() - 0.5) * 0.18,
+      dx:   (Math.random() - 0.5) * 2.5,
+      dy:   3 + Math.random() * 4,
+      color: palette[Math.floor(Math.random() * palette.length)],
+      alpha: 1
+    });
+  }
+
+  var startTime = Date.now();
+  var duration  = 4000; // ms
+
+  if (confettiAnim) cancelAnimationFrame(confettiAnim);
+
+  function draw() {
+    var elapsed = Date.now() - startTime;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var alive = false;
+    for (var j = 0; j < pieces.length; j++) {
+      var p = pieces[j];
+      p.x  += p.dx;
+      p.y  += p.dy;
+      p.r  += p.dr;
+      p.dy += 0.06; // gravity
+      if (elapsed > duration * 0.6) p.alpha = Math.max(0, p.alpha - 0.018);
+      if (p.y < canvas.height + 20 && p.alpha > 0) alive = true;
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.r);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    }
+    if (alive) {
+      confettiAnim = requestAnimationFrame(draw);
+    } else {
+      canvas.style.display = 'none';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+  draw();
+}
+
+init();
+</script>
+</body>
+</html>
