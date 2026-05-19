@@ -163,6 +163,13 @@
   .cp-swatch:hover { transform: scale(1.15); }
   .cp-swatch.active { border-color: #fff; }
 
+  /* Scoring mode buttons */
+  .sm-row { display: flex; gap: 8px; }
+  .sm-btn { padding: 10px 18px; border-radius: 10px; border: 2px solid var(--border); background: var(--surface2); color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .sm-btn:hover { background: var(--surface); color: var(--text); }
+  .sm-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.1); }
+  .mode-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: rgba(76,201,240,0.15); color: #4cc9f0; border: 1px solid rgba(76,201,240,0.35); letter-spacing: 0.3px; }
+
   /* Share modal content */
   .share-text { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; line-height: 1.6; resize: none; outline: none; margin-bottom: 12px; }
   .share-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -187,6 +194,10 @@
     <span class="setup-label">Number of Teams</span>
     <div class="team-count-row" id="tc-row"></div>
   </div>
+  <div class="setup-card">
+    <span class="setup-label">Scoring Mode</span>
+    <div class="sm-row" id="sm-row"></div>
+  </div>
   <button class="btn btn-accent btn-full" onclick="startGame()">▶ Start Game</button>
   <div id="setup-hof"></div>
 </div>
@@ -199,7 +210,10 @@
   <div id="panel-scores">
     <div class="game-info-bar">
       <div class="game-name-display" id="cur-game-name"></div>
-      <div class="round-badge" id="cur-round"></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="mode-badge" id="mode-badge" style="display:none">↓ Low wins</div>
+        <div class="round-badge" id="cur-round"></div>
+      </div>
     </div>
     <div class="leader-banner" id="leader-banner" style="display:none">
       <span class="lb-crown" id="lb-crown">👑</span>
@@ -268,7 +282,7 @@ var COLORS = ['#ff6b35','#ffd60a','#4cc9f0','#a855f7','#2ecc71','#e63946','#f725
 var DEFAULT_NAMES = ['Team Alpha','Team Bravo','Team Charlie','Team Delta','Team Echo','Team Foxtrot','Team Golf','Team Hotel'];
 
 // State — the only data that matters
-var S = { view:'setup', gameName:'', teams:[], round:1, gameHistory:[] };
+var S = { view:'setup', gameName:'', teams:[], round:1, gameHistory:[], lowScoreWins:false };
 var teamCount = 4;
 var modalAction = null;
 var toastTimer = null;
@@ -286,7 +300,8 @@ function load() {
     S.gameName    = p.gameName    || '';
     S.teams       = Array.isArray(p.teams)       ? p.teams       : [];
     S.round       = p.round       || 1;
-    S.gameHistory = Array.isArray(p.gameHistory) ? p.gameHistory : [];
+    S.gameHistory   = Array.isArray(p.gameHistory) ? p.gameHistory : [];
+    S.lowScoreWins  = !!p.lowScoreWins;
   } catch(e) { console.warn('load error', e); }
 }
 
@@ -302,9 +317,23 @@ function toast(msg) {
   toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2400);
 }
 
+function buildSMButtons() {
+  var row = document.getElementById('sm-row');
+  if (!row) return;
+  row.innerHTML = '';
+  [{ label:'↑ Highest wins', val:false }, { label:'↓ Lowest wins', val:true }].forEach(function(o) {
+    var b = document.createElement('button');
+    b.className = 'sm-btn' + (S.lowScoreWins === o.val ? ' active' : '');
+    b.textContent = o.label;
+    b.onclick = function() { S.lowScoreWins = o.val; buildSMButtons(); };
+    row.appendChild(b);
+  });
+}
+
 function init() {
   load();
   buildTCButtons();
+  buildSMButtons();
   if (S.view === 'game' && S.teams.length > 0) {
     renderGameScreen();
   } else {
@@ -331,6 +360,7 @@ function renderSetupScreen() {
   document.getElementById('setup-screen').style.display = 'block';
   document.getElementById('game-screen').style.display  = 'none';
   document.getElementById('hdr-actions').innerHTML = '';
+  buildSMButtons();
   renderSetupHOF();
 }
 
@@ -367,6 +397,8 @@ function renderGameScreen() {
     '<button class="btn btn-ghost btn-sm" onclick="confirmAction(\'newgame\')">+ New Game</button>';
   document.getElementById('cur-game-name').textContent = S.gameName;
   document.getElementById('cur-round').textContent     = 'Round ' + S.round;
+  var mb = document.getElementById('mode-badge');
+  if (mb) mb.style.display = S.lowScoreWins ? '' : 'none';
   renderTeams();
   renderHOF();
   buildTimerPresets();
@@ -378,15 +410,17 @@ function renderTeams() {
   var grid = document.getElementById('teams-grid');
   grid.innerHTML = '';
   var scores = S.teams.map(function(t){ return t.score; });
-  var maxScore = Math.max.apply(null, scores);
-  var tiedForLead = maxScore > 0 && scores.filter(function(s){ return s === maxScore; }).length > 1;
+  var bestScore = S.lowScoreWins ? Math.min.apply(null, scores) : Math.max.apply(null, scores);
+  var allEqual = scores.every(function(s){ return s === scores[0]; });
+  var hasLeader = !allEqual || (!S.lowScoreWins && bestScore > 0);
+  var tiedForLead = hasLeader && scores.filter(function(s){ return s === bestScore; }).length > 1;
 
   for (var idx = 0; idx < S.teams.length; idx++) {
     (function(i){
       var team = S.teams[i];
       var color = team.color || COLORS[i % COLORS.length];
-      var isLeader = team.score === maxScore && !tiedForLead && maxScore > 0;
-      var isTied   = team.score === maxScore && tiedForLead;
+      var isLeader = hasLeader && team.score === bestScore && !tiedForLead;
+      var isTied   = hasLeader && team.score === bestScore && tiedForLead;
       var histHTML = '';
       var hist = team.history.slice(-8);
       for (var h = 0; h < hist.length; h++) {
@@ -419,7 +453,7 @@ function renderTeams() {
       grid.appendChild(card);
     })(idx);
   }
-  updateLeaderBanner(maxScore, tiedForLead);
+  updateLeaderBanner(bestScore, tiedForLead, hasLeader);
 }
 
 function addScore(idx, dir) {
@@ -487,9 +521,10 @@ function gameRecordHTML(g, i, deleteFn) {
     var s = g.standings[si];
     chips += '<span class="standing-chip' + (si===0?' first':'') + '">' + (si===0?(g.isTie?'🤝 ':'🥇 '):'') + esc(s.name) + ': ' + s.score + '</span>';
   }
+  var modeSuffix = g.lowScoreWins ? ' <span style="font-size:11px;color:#4cc9f0;font-weight:600">(↓ low wins)</span>' : '';
   var winnerLine = g.isTie
-    ? '🤝 <span style="color:#4cc9f0">Tie — ' + esc(g.winner) + ' — ' + g.winnerScore + ' pts</span>'
-    : '🏆 ' + esc(g.winner) + ' &mdash; ' + g.winnerScore + ' pts';
+    ? '🤝 <span style="color:#4cc9f0">Tie — ' + esc(g.winner) + ' — ' + g.winnerScore + ' pts</span>' + modeSuffix
+    : '🏆 ' + esc(g.winner) + ' &mdash; ' + g.winnerScore + ' pts' + modeSuffix;
   return '<div class="game-record">' +
     '<div class="gr-header"><div class="gr-name">'+esc(g.name)+'</div><div class="gr-date">'+esc(g.date)+'</div></div>' +
     '<div class="gr-winner">' + winnerLine + '</div>' +
@@ -503,18 +538,19 @@ function deleteFromSetup(i) { S.gameHistory.splice(i,1); save(); renderSetupHOF(
 
 function endGame() {
   closeModal();
-  var sorted = S.teams.slice().sort(function(a,b){ return b.score - a.score; });
+  var sorted = S.teams.slice().sort(function(a,b){ return S.lowScoreWins ? a.score - b.score : b.score - a.score; });
   var topScore = sorted[0].score;
   var winners  = sorted.filter(function(t){ return t.score === topScore; });
   var isTie    = winners.length > 1;
 
   var record = {
-    name:        S.gameName,
-    date:        new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
-    winner:      isTie ? winners.map(function(t){ return t.name; }).join(' & ') : sorted[0].name,
-    winnerScore: topScore,
-    isTie:       isTie,
-    standings:   sorted.map(function(t){ return {name:t.name, score:t.score}; })
+    name:         S.gameName,
+    date:         new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+    winner:       isTie ? winners.map(function(t){ return t.name; }).join(' & ') : sorted[0].name,
+    winnerScore:  topScore,
+    isTie:        isTie,
+    lowScoreWins: S.lowScoreWins,
+    standings:    sorted.map(function(t){ return {name:t.name, score:t.score}; })
   };
   S.gameHistory.unshift(record);
   S.teams.forEach(function(t){ t.score=0; t.history=[]; });
@@ -793,27 +829,29 @@ function winCountsHTML() {
 }
 
 // ── LEADER BANNER ─────────────────────────────────────────────
-function updateLeaderBanner(maxScore, tiedForLead) {
+function updateLeaderBanner(bestScore, tiedForLead, hasLeader) {
   var banner = document.getElementById('leader-banner');
   if (!banner) return;
-  if (!maxScore || maxScore <= 0) { banner.style.display = 'none'; return; }
+  if (!hasLeader) { banner.style.display = 'none'; return; }
   banner.style.display = 'flex';
 
   if (tiedForLead) {
-    var tiedTeams = S.teams.filter(function(t){ return t.score === maxScore; });
+    var tiedTeams = S.teams.filter(function(t){ return t.score === bestScore; });
     var names = tiedTeams.map(function(t){ return t.name; }).join(' & ');
     banner.className = 'leader-banner tie-mode';
     document.getElementById('lb-crown').textContent = '🤝';
     document.getElementById('lb-name').textContent  = names + ' are tied';
-    document.getElementById('lb-score').textContent = '— ' + maxScore + ' pts each';
+    document.getElementById('lb-score').textContent = '— ' + bestScore + ' pts each';
   } else {
-    var leader = S.teams.filter(function(t){ return t.score === maxScore; })[0];
-    var second = S.teams.slice().sort(function(a,b){ return b.score - a.score; })[1];
-    var gap = second ? (maxScore - second.score) : maxScore;
+    var leader = S.teams.filter(function(t){ return t.score === bestScore; })[0];
+    var sorted = S.teams.slice().sort(function(a,b){ return S.lowScoreWins ? a.score - b.score : b.score - a.score; });
+    var second = sorted[1];
+    var gap = second ? Math.abs(bestScore - second.score) : 0;
+    var gapText = gap > 0 ? (S.lowScoreWins ? ' (−' + gap + ')' : ' (+' + gap + ')') : '';
     banner.className = 'leader-banner';
     document.getElementById('lb-crown').textContent = '👑';
-    document.getElementById('lb-name').textContent  = leader.name + ' is winning';
-    document.getElementById('lb-score').textContent = '— ' + maxScore + ' pts' + (gap > 0 ? ' (+' + gap + ')' : '');
+    document.getElementById('lb-name').textContent  = leader.name + (S.lowScoreWins ? ' is leading' : ' is winning');
+    document.getElementById('lb-score').textContent = '— ' + bestScore + ' pts' + gapText;
   }
 }
 
@@ -888,7 +926,8 @@ function buildShareText() {
   lines.push('🎲 ' + S.gameName + ' — Current Scores');
   lines.push('Round ' + S.round);
   lines.push('');
-  var sorted = S.teams.slice().sort(function(a,b){ return b.score - a.score; });
+  if (S.lowScoreWins) lines.push('(Lowest score wins)');
+  var sorted = S.teams.slice().sort(function(a,b){ return S.lowScoreWins ? a.score - b.score : b.score - a.score; });
   var medals = ['🥇','🥈','🥉'];
   sorted.forEach(function(t, i) {
     lines.push((medals[i] || ('  ' + (i+1) + '.')) + ' ' + t.name + ': ' + t.score + ' pts');
