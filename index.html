@@ -6,6 +6,7 @@
 <title>Game Night Scoreboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F3B2;</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
 <style>
   :root {
     --bg: #0f0e17; --surface: #1a1929; --surface2: #252438;
@@ -121,6 +122,10 @@
 
   /* Fullscreen button */
   .btn-fs { font-size: 16px; padding: 6px 10px; line-height: 1; }
+
+  /* Mic button */
+  @keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(230,57,70,0.5); } 60% { box-shadow: 0 0 0 7px rgba(230,57,70,0); } }
+  #mic-btn.listening { background: var(--danger); color: #fff; border-color: var(--danger); animation: micPulse 1.4s ease-out infinite; }
   :fullscreen header, :-webkit-full-screen header, :-moz-full-screen header { position: sticky; }
 
   /* Landscape layout — timer + teams side by side */
@@ -393,8 +398,10 @@ function renderGameScreen() {
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('game-screen').style.display  = 'block';
   document.getElementById('hdr-actions').innerHTML =
+    '<button class="btn btn-ghost btn-sm" id="mic-btn" onclick="toggleVoice()" title="Voice commands">🎤</button>' +
     '<button class="btn btn-ghost btn-sm btn-fs" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>' +
     '<button class="btn btn-ghost btn-sm" onclick="confirmAction(\'newgame\')">+ New Game</button>';
+  initVoice();
   document.getElementById('cur-game-name').textContent = S.gameName;
   document.getElementById('cur-round').textContent     = 'Round ' + S.round;
   var mb = document.getElementById('mode-badge');
@@ -581,6 +588,7 @@ function resetGame() {
 
 function goToSetup() {
   closeModal();
+  if (typeof annyang !== 'undefined' && annyang.isListening()) annyang.abort();
   var history = S.gameHistory; // hold reference
   S.view = 'setup'; S.gameName = ''; S.teams = []; S.round = 1;
   S.gameHistory = history;     // put it back
@@ -1072,6 +1080,44 @@ function launchConfetti(colors) {
     }
   }
   draw();
+}
+
+// ── VOICE COMMANDS ────────────────────────────────────────────
+function initVoice() {
+  if (typeof annyang === 'undefined') {
+    var btn = document.getElementById('mic-btn');
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+  annyang.removeCommands();
+  annyang.addCommands({
+    'start timer': function() { if (!timerRunning) { timerStart(); toast('⏱ Timer started'); } },
+    'stop timer':  function() { if (timerRunning)  { timerStop();  toast('⏸ Timer stopped'); } },
+    'pause timer': function() { if (timerRunning)  { timerStop();  toast('⏸ Timer paused');  } },
+    'reset timer': function() { timerReset(); toast('↺ Timer reset'); }
+  });
+}
+
+function toggleVoice() {
+  if (typeof annyang === 'undefined') {
+    toast('Voice commands not supported in this browser');
+    return;
+  }
+  if (annyang.isListening()) {
+    annyang.abort();
+    updateMicBtn(false);
+    toast('🎤 Voice off');
+  } else {
+    annyang.start({ autoRestart: false, continuous: true });
+    updateMicBtn(true);
+    toast('🎤 Listening — say "start timer" or "stop timer"');
+  }
+}
+
+function updateMicBtn(active) {
+  var btn = document.getElementById('mic-btn');
+  if (!btn) return;
+  btn.className = 'btn btn-sm ' + (active ? 'btn-ghost listening' : 'btn-ghost');
 }
 
 init();
