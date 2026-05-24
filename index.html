@@ -1178,7 +1178,7 @@ function toggleVoice() {
     updateMicBtn(false);
     toast('🎤 Voice off');
   } else {
-    annyang.start({ autoRestart: false, continuous: true });
+    annyang.start({ autoRestart: true, continuous: true });
     updateMicBtn(true);
     toast('🎤 Listening — say "start timer" or "stop timer"');
   }
