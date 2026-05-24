@@ -126,6 +126,18 @@
   /* Mic button */
   @keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(230,57,70,0.5); } 60% { box-shadow: 0 0 0 7px rgba(230,57,70,0); } }
   #mic-btn.listening { background: var(--danger); color: #fff; border-color: var(--danger); animation: micPulse 1.4s ease-out infinite; }
+
+  /* Splash screen */
+  @keyframes splashIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+  .splash-overlay { position: fixed; inset: 0; z-index: 600; background: rgba(15,14,23,0.97); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .splash-card { background: var(--surface); border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 440px; border: 1px solid var(--border); max-height: 90vh; overflow-y: auto; animation: splashIn 0.35s ease; }
+  .splash-logo { font-family: 'Bebas Neue', sans-serif; font-size: 38px; letter-spacing: 3px; color: var(--accent); }
+  .splash-tagline { color: var(--text-muted); font-size: 14px; margin-top: 4px; margin-bottom: 22px; }
+  .splash-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+  .splash-feature { background: var(--surface2); border-radius: 12px; padding: 14px 12px; border: 1px solid var(--border); }
+  .splash-feature-icon { font-size: 22px; margin-bottom: 6px; }
+  .splash-feature-title { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .splash-feature-desc { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
   :fullscreen header, :-webkit-full-screen header, :-moz-full-screen header { position: sticky; }
 
   /* Landscape layout — timer + teams side by side */
@@ -183,6 +195,49 @@
 </head>
 <body>
 <canvas id="confetti-canvas" style="display:none"></canvas>
+
+<div id="splash" class="splash-overlay" style="display:none">
+  <div class="splash-card">
+    <div style="text-align:center">
+      <div class="splash-logo">🎲 ScoreKeeper</div>
+      <p class="splash-tagline">Everything you need for game night.</p>
+    </div>
+    <div class="splash-features">
+      <div class="splash-feature">
+        <div class="splash-feature-icon">🎯</div>
+        <div class="splash-feature-title">Score Tracking</div>
+        <div class="splash-feature-desc">Add, subtract &amp; undo points for up to 8 teams.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">⏱</div>
+        <div class="splash-feature-title">Countdown Timer</div>
+        <div class="splash-feature-desc">Presets, custom time &amp; a loud alarm when time's up.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">🎤</div>
+        <div class="splash-feature-title">Voice Commands</div>
+        <div class="splash-feature-desc">Say "start timer" or "stop timer" completely hands-free.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">🏆</div>
+        <div class="splash-feature-title">Hall of Fame</div>
+        <div class="splash-feature-desc">Game results saved automatically to your device.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">↓</div>
+        <div class="splash-feature-title">Low Score Mode</div>
+        <div class="splash-feature-desc">Golf and other lowest-score-wins games fully supported.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">📤</div>
+        <div class="splash-feature-title">Share Results</div>
+        <div class="splash-feature-desc">Export standings as text to share with anyone.</div>
+      </div>
+    </div>
+    <button class="btn btn-accent btn-full" onclick="dismissSplash()">▶ Let's Play!</button>
+  </div>
+</div>
+
 <header>
   <div class="logo">🎲 Scorekeeper</div>
   <div class="header-actions" id="hdr-actions"></div>
@@ -337,6 +392,7 @@ function buildSMButtons() {
 
 function init() {
   load();
+  checkSplash();
   buildTCButtons();
   buildSMButtons();
   if (S.view === 'game' && S.teams.length > 0) {
@@ -1080,6 +1136,20 @@ function launchConfetti(colors) {
     }
   }
   draw();
+}
+
+// ── SPLASH SCREEN ─────────────────────────────────────────────
+function checkSplash() {
+  try {
+    if (!localStorage.getItem('sk_splash')) {
+      document.getElementById('splash').style.display = 'flex';
+    }
+  } catch(e) {}
+}
+
+function dismissSplash() {
+  try { localStorage.setItem('sk_splash', '1'); } catch(e) {}
+  document.getElementById('splash').style.display = 'none';
 }
 
 // ── VOICE COMMANDS ────────────────────────────────────────────
