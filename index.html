@@ -1161,10 +1161,12 @@ function initVoice() {
   }
   annyang.removeCommands();
   annyang.addCommands({
-    'start timer': function() { if (!timerRunning) { timerStart(); toast('⏱ Timer started'); } },
-    'stop timer':  function() { if (timerRunning)  { timerStop();  toast('⏸ Timer stopped'); } },
-    'pause timer': function() { if (timerRunning)  { timerStop();  toast('⏸ Timer paused');  } },
-    'reset timer': function() { timerReset(); toast('↺ Timer reset'); }
+    'start timer':   function() { if (!timerRunning) { timerStart(); toast('⏱ Timer started'); } },
+    'stop timer':    function() { if (timerRunning)  { timerStop();  toast('⏸ Timer stopped'); } },
+    'pause timer':   function() { if (timerRunning)  { timerStop();  toast('⏸ Timer paused');  } },
+    'reset timer':   function() { timerReset(); toast('↺ Timer reset'); },
+    'reset scores':  function() { confirmAction('reset'); },
+    'new game':      function() { confirmAction('newgame'); }
   });
 }
 
@@ -1180,7 +1182,7 @@ function toggleVoice() {
   } else {
     annyang.start({ autoRestart: true, continuous: true });
     updateMicBtn(true);
-    toast('🎤 Listening — say "start timer" or "stop timer"');
+    toast('🎤 Listening — timer, reset scores, new game');
   }
 }
 
