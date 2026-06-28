@@ -6,6 +6,7 @@
 <title>Game Night Scoreboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F3B2;</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
 <style>
   :root {
     --bg: #0f0e17; --surface: #1a1929; --surface2: #252438;
@@ -121,6 +122,22 @@
 
   /* Fullscreen button */
   .btn-fs { font-size: 16px; padding: 6px 10px; line-height: 1; }
+
+  /* Mic button */
+  @keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(230,57,70,0.5); } 60% { box-shadow: 0 0 0 7px rgba(230,57,70,0); } }
+  #mic-btn.listening { background: var(--danger); color: #fff; border-color: var(--danger); animation: micPulse 1.4s ease-out infinite; }
+
+  /* Splash screen */
+  @keyframes splashIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+  .splash-overlay { position: fixed; inset: 0; z-index: 600; background: rgba(15,14,23,0.97); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .splash-card { background: var(--surface); border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 440px; border: 1px solid var(--border); max-height: 90vh; overflow-y: auto; animation: splashIn 0.35s ease; }
+  .splash-logo { font-family: 'Bebas Neue', sans-serif; font-size: 38px; letter-spacing: 3px; color: var(--accent); }
+  .splash-tagline { color: var(--text-muted); font-size: 14px; margin-top: 4px; margin-bottom: 22px; }
+  .splash-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+  .splash-feature { background: var(--surface2); border-radius: 12px; padding: 14px 12px; border: 1px solid var(--border); }
+  .splash-feature-icon { font-size: 22px; margin-bottom: 6px; }
+  .splash-feature-title { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .splash-feature-desc { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
   :fullscreen header, :-webkit-full-screen header, :-moz-full-screen header { position: sticky; }
 
   /* Landscape layout — timer + teams side by side */
@@ -178,6 +195,49 @@
 </head>
 <body>
 <canvas id="confetti-canvas" style="display:none"></canvas>
+
+<div id="splash" class="splash-overlay" style="display:none">
+  <div class="splash-card">
+    <div style="text-align:center">
+      <div class="splash-logo">🎲 ScoreKeeper</div>
+      <p class="splash-tagline">Everything you need for game night.</p>
+    </div>
+    <div class="splash-features">
+      <div class="splash-feature">
+        <div class="splash-feature-icon">🎯</div>
+        <div class="splash-feature-title">Score Tracking</div>
+        <div class="splash-feature-desc">Add, subtract &amp; undo points for up to 8 teams.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">⏱</div>
+        <div class="splash-feature-title">Countdown Timer</div>
+        <div class="splash-feature-desc">Presets, custom time &amp; a loud alarm when time's up.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">🎤</div>
+        <div class="splash-feature-title">Voice Commands</div>
+        <div class="splash-feature-desc">Say "start timer" or "stop timer" completely hands-free.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">🏆</div>
+        <div class="splash-feature-title">Hall of Fame</div>
+        <div class="splash-feature-desc">Game results saved automatically to your device.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">↓</div>
+        <div class="splash-feature-title">Low Score Mode</div>
+        <div class="splash-feature-desc">Golf and other lowest-score-wins games fully supported.</div>
+      </div>
+      <div class="splash-feature">
+        <div class="splash-feature-icon">📤</div>
+        <div class="splash-feature-title">Share Results</div>
+        <div class="splash-feature-desc">Export standings as text to share with anyone.</div>
+      </div>
+    </div>
+    <button class="btn btn-accent btn-full" onclick="dismissSplash()">▶ Let's Play!</button>
+  </div>
+</div>
+
 <header>
   <div class="logo">🎲 Scorekeeper</div>
   <div class="header-actions" id="hdr-actions"></div>
@@ -332,6 +392,7 @@ function buildSMButtons() {
 
 function init() {
   load();
+  checkSplash();
   buildTCButtons();
   buildSMButtons();
   if (S.view === 'game' && S.teams.length > 0) {
@@ -393,8 +454,10 @@ function renderGameScreen() {
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('game-screen').style.display  = 'block';
   document.getElementById('hdr-actions').innerHTML =
+    '<button class="btn btn-ghost btn-sm" id="mic-btn" onclick="toggleVoice()" title="Voice commands">🎤</button>' +
     '<button class="btn btn-ghost btn-sm btn-fs" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>' +
     '<button class="btn btn-ghost btn-sm" onclick="confirmAction(\'newgame\')">+ New Game</button>';
+  initVoice();
   document.getElementById('cur-game-name').textContent = S.gameName;
   document.getElementById('cur-round').textContent     = 'Round ' + S.round;
   var mb = document.getElementById('mode-badge');
@@ -581,6 +644,8 @@ function resetGame() {
 
 function goToSetup() {
   closeModal();
+  voiceOn = false;
+  if (typeof annyang !== 'undefined') annyang.abort();
   var history = S.gameHistory; // hold reference
   S.view = 'setup'; S.gameName = ''; S.teams = []; S.round = 1;
   S.gameHistory = history;     // put it back
@@ -1072,6 +1137,89 @@ function launchConfetti(colors) {
     }
   }
   draw();
+}
+
+// ── SPLASH SCREEN ─────────────────────────────────────────────
+function checkSplash() {
+  try {
+    if (!localStorage.getItem('sk_splash')) {
+      document.getElementById('splash').style.display = 'flex';
+    }
+  } catch(e) {}
+}
+
+function dismissSplash() {
+  try { localStorage.setItem('sk_splash', '1'); } catch(e) {}
+  document.getElementById('splash').style.display = 'none';
+}
+
+// ── VOICE COMMANDS ────────────────────────────────────────────
+// voiceOn is our own record of whether the user WANTS to be listening.
+// We never trust annyang.isListening() for the toggle: with autoRestart the
+// browser's recognition stops/restarts constantly (especially on Android
+// Chrome), so isListening() can momentarily be false while the mic is still
+// "on" from the user's point of view. Tapping during that gap used to flip the
+// toggle backwards and leave the button stuck red.
+var voiceOn = false;
+var voiceCallbacksSet = false;
+
+function initVoice() {
+  if (typeof annyang === 'undefined') {
+    var btn = document.getElementById('mic-btn');
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+  annyang.removeCommands();
+  annyang.addCommands({
+    'start timer':   function() { if (!timerRunning) { timerStart(); toast('⏱ Timer started'); } },
+    'stop timer':    function() { if (timerRunning)  { timerStop();  toast('⏸ Timer stopped'); } },
+    'pause timer':   function() { if (timerRunning)  { timerStop();  toast('⏸ Timer paused');  } },
+    'reset timer':   function() { timerReset(); toast('↺ Timer reset'); },
+    'reset scores':  function() { confirmAction('reset'); },
+    'new game':      function() { confirmAction('newgame'); }
+  });
+
+  // Register lifecycle callbacks once — annyang appends them, so re-running
+  // initVoice() (on every game render / name change) must not stack duplicates.
+  if (!voiceCallbacksSet) {
+    voiceCallbacksSet = true;
+    // Keep the button honest whenever recognition actually starts or ends.
+    annyang.addCallback('start', function() { updateMicBtn(voiceOn); });
+    annyang.addCallback('end',   function() { updateMicBtn(voiceOn); });
+    // If the mic is denied or unavailable, we're not really listening — make
+    // sure the button reflects that instead of staying red forever.
+    annyang.addCallback('error', function(e) {
+      if (e && (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture')) {
+        voiceOn = false;
+        updateMicBtn(false);
+        toast('🎤 Mic unavailable');
+      }
+    });
+  }
+}
+
+function toggleVoice() {
+  if (typeof annyang === 'undefined') {
+    toast('Voice commands not supported in this browser');
+    return;
+  }
+  if (voiceOn) {
+    voiceOn = false;
+    annyang.abort();
+    updateMicBtn(false);
+    toast('🎤 Voice off');
+  } else {
+    voiceOn = true;
+    annyang.start({ autoRestart: true, continuous: true });
+    updateMicBtn(true);
+    toast('🎤 Listening — timer, reset scores, new game');
+  }
+}
+
+function updateMicBtn(active) {
+  var btn = document.getElementById('mic-btn');
+  if (!btn) return;
+  btn.className = 'btn btn-sm ' + (active ? 'btn-ghost listening' : 'btn-ghost');
 }
 
 init();
