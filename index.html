@@ -71,6 +71,8 @@
   .score-pip.neg { color: var(--danger); }
   .bottom-actions { position: sticky; bottom: 0; background: rgba(15,14,23,0.95); backdrop-filter: blur(12px); border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 8px; }
   .bottom-actions .btn { flex: 1; justify-content: center; }
+  .btn.is-disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
+  .btn.is-disabled:active { transform: none; }
   .hof-wrap { padding: 0 16px 20px; }
   .hof-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 2px; padding: 20px 0 14px; color: var(--accent2); }
   .game-record { background: var(--surface); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); margin-bottom: 10px; }
@@ -306,7 +308,7 @@
     <div class="bottom-actions">
       <button class="btn btn-ghost"   onclick="confirmAction('reset')">↺ Reset</button>
       <button class="btn btn-ghost"   onclick="openShareModal()">↗ Share</button>
-      <button class="btn btn-success" onclick="confirmAction('end')">🏆 End Game</button>
+      <button class="btn btn-success" id="end-game-btn" onclick="confirmAction('end')">🏆 End Game</button>
     </div>
   </div>
   <div id="panel-hof" style="display:none">
@@ -519,6 +521,15 @@ function renderTeams() {
     })(idx);
   }
   updateLeaderBanner(bestScore, tiedForLead, hasLeader);
+  updateEndGameBtn();
+}
+
+function updateEndGameBtn() {
+  var btn = document.getElementById('end-game-btn');
+  if (!btn) return;
+  var endable = isGameEndable();
+  btn.classList.toggle('is-disabled', !endable);
+  btn.title = endable ? '' : 'Add some points before ending the game';
 }
 
 function addScore(idx, dir) {
@@ -608,8 +619,16 @@ function gameRecordHTML(g, i, deleteFn) {
 function deleteFromGame(i) { S.gameHistory.splice(i,1); save(); renderHOF(); toast('Record deleted'); }
 function deleteFromSetup(i) { S.gameHistory.splice(i,1); save(); renderSetupHOF(); toast('Record deleted'); }
 
+// A game can only be ended once there's been some scoring. After an end (or a
+// reset) every score is 0, which both disables the End Game button and blocks
+// this guard — so a finished board can't be recorded again with zeroed scores.
+function isGameEndable() {
+  return S.teams.some(function(t){ return t.score !== 0; });
+}
+
 function endGame() {
   closeModal();
+  if (!isGameEndable()) { toast('Add some points before ending the game'); return; }
   // The game is over: kill the timer/alarm so it can't keep ticking afterward.
   timerStop();
   stopAlarm();
@@ -628,17 +647,14 @@ function endGame() {
     standings:    sorted.map(function(t){ return {name:t.name, score:t.score}; })
   };
   S.gameHistory.unshift(record);
-  // Conclude the game and return to setup. The finished board no longer lingers,
-  // so it can't be ended a second time and recorded again with zeroed scores.
-  voiceOn = false;
-  if (typeof annyang !== 'undefined') annyang.abort();
-  S.view = 'setup';
-  S.gameName = '';
-  S.teams = [];
+  // Keep the teams so the same lineup can play again; just clear scores.
+  S.teams.forEach(function(t){ t.score=0; t.history=[]; });
   S.round = 1;
   save();
-  document.getElementById('game-name-input').value = '';
-  renderSetupScreen();
+  document.getElementById('cur-round').textContent = 'Round 1';
+  renderTeams();
+  renderHOF();
+  showTab('hof');
   if (isTie) {
     toast('🤝 It\'s a tie — ' + record.winner + '!');
     launchConfetti(['#4cc9f0','#a855f7','#fffffe','#ffd60a']);
@@ -672,11 +688,12 @@ function goToSetup() {
 
 var MODAL_CONFIGS = {
   reset:   { title:'Reset Scores?',   body:'All current scores will be wiped. This cannot be undone.',                                  label:'Reset',       cls:'btn-danger',  action:resetGame },
-  end:     { title:'End Game?',        body:'The winner is saved to the Hall of Fame and the game returns to setup.',                     label:'End Game',    cls:'btn-success', action:endGame   },
+  end:     { title:'End Game?',        body:'The winner is saved to the Hall of Fame and scores reset so the same teams can play again.', label:'End Game',    cls:'btn-success', action:endGame   },
   newgame: { title:'New Game?',        body:'Return to setup to pick teams and a new game name. Current scores will be lost.',            label:'Go to Setup', cls:'btn-accent',  action:goToSetup }
 };
 
 function confirmAction(type) {
+  if (type === 'end' && !isGameEndable()) { toast('Add some points before ending the game'); return; }
   var cfg = MODAL_CONFIGS[type];
   document.getElementById('modal-title').textContent = cfg.title;
   document.getElementById('modal-body').textContent  = cfg.body;
