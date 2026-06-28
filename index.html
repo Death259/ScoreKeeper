@@ -644,7 +644,8 @@ function resetGame() {
 
 function goToSetup() {
   closeModal();
-  if (typeof annyang !== 'undefined' && annyang.isListening()) annyang.abort();
+  voiceOn = false;
+  if (typeof annyang !== 'undefined') annyang.abort();
   var history = S.gameHistory; // hold reference
   S.view = 'setup'; S.gameName = ''; S.teams = []; S.round = 1;
   S.gameHistory = history;     // put it back
@@ -1153,6 +1154,15 @@ function dismissSplash() {
 }
 
 // ── VOICE COMMANDS ────────────────────────────────────────────
+// voiceOn is our own record of whether the user WANTS to be listening.
+// We never trust annyang.isListening() for the toggle: with autoRestart the
+// browser's recognition stops/restarts constantly (especially on Android
+// Chrome), so isListening() can momentarily be false while the mic is still
+// "on" from the user's point of view. Tapping during that gap used to flip the
+// toggle backwards and leave the button stuck red.
+var voiceOn = false;
+var voiceCallbacksSet = false;
+
 function initVoice() {
   if (typeof annyang === 'undefined') {
     var btn = document.getElementById('mic-btn');
@@ -1168,6 +1178,24 @@ function initVoice() {
     'reset scores':  function() { confirmAction('reset'); },
     'new game':      function() { confirmAction('newgame'); }
   });
+
+  // Register lifecycle callbacks once — annyang appends them, so re-running
+  // initVoice() (on every game render / name change) must not stack duplicates.
+  if (!voiceCallbacksSet) {
+    voiceCallbacksSet = true;
+    // Keep the button honest whenever recognition actually starts or ends.
+    annyang.addCallback('start', function() { updateMicBtn(voiceOn); });
+    annyang.addCallback('end',   function() { updateMicBtn(voiceOn); });
+    // If the mic is denied or unavailable, we're not really listening — make
+    // sure the button reflects that instead of staying red forever.
+    annyang.addCallback('error', function(e) {
+      if (e && (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture')) {
+        voiceOn = false;
+        updateMicBtn(false);
+        toast('🎤 Mic unavailable');
+      }
+    });
+  }
 }
 
 function toggleVoice() {
@@ -1175,11 +1203,13 @@ function toggleVoice() {
     toast('Voice commands not supported in this browser');
     return;
   }
-  if (annyang.isListening()) {
+  if (voiceOn) {
+    voiceOn = false;
     annyang.abort();
     updateMicBtn(false);
     toast('🎤 Voice off');
   } else {
+    voiceOn = true;
     annyang.start({ autoRestart: true, continuous: true });
     updateMicBtn(true);
     toast('🎤 Listening — timer, reset scores, new game');
