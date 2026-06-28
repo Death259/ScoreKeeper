@@ -60,12 +60,12 @@ All state is saved to `localStorage` under the key `scorekeeper`. Reloading the 
 
 ## Usage
 
-Visit the **[live demo](https://death259.github.io/ScoreKeeper/)** or open `index.html` directly in a browser — no build step required. Works offline once the Google Fonts and voice library have loaded once (voice commands need that initial network fetch).
+Visit the **[live demo](https://death259.github.io/ScoreKeeper/)** or open `index.html` directly in a browser — no build step or dependencies required. Everything but the Google Fonts is bundled in the single file, so it works offline (fonts fall back to system defaults if unavailable).
 
 ## Tech Stack
 
 - Vanilla HTML/CSS/JS in a single file — no build tooling
-- [annyang](https://www.talater.com/annyang/) (loaded from a CDN) wrapping the Web Speech API for voice commands
+- [annyang](https://www.talater.com/annyang/) (MIT, ~4.5KB minified, vendored inline in `index.html`) wrapping the Web Speech API for voice commands
 - Web Audio API for the countdown alarm
 - Canvas API for confetti
 - `localStorage` for persistence
