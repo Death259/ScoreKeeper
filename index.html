@@ -93,8 +93,10 @@
   .modal-body { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
   .modal-actions { display: flex; gap: 10px; }
   .modal-actions .btn { flex: 1; justify-content: center; padding: 13px; }
-  .toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--surface2); border: 1px solid var(--border); border-radius: 30px; padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.25s; z-index: 300; white-space: nowrap; }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--surface2); border: 1px solid var(--border); border-radius: 30px; padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.25s; z-index: 300; white-space: nowrap; display: inline-flex; align-items: center; gap: 14px; pointer-events: none; }
+  .toast-action { background: transparent; border: none; color: var(--accent2); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.3px; cursor: pointer; padding: 2px 2px; }
+  .toast-action:active { transform: scale(0.94); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
 
   /* Timer */
   .timer-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px; }
@@ -373,12 +375,27 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function toast(msg) {
+function toast(msg, actionLabel, actionFn) {
   var el = document.getElementById('toast');
-  el.textContent = msg;
+  el.innerHTML = '';
+  var span = document.createElement('span');
+  span.textContent = msg;        // textContent keeps user-supplied names safe
+  el.appendChild(span);
+  if (actionLabel && actionFn) {
+    var btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.textContent = actionLabel;
+    btn.onclick = function() {
+      clearTimeout(toastTimer);
+      el.classList.remove('show');
+      actionFn();
+    };
+    el.appendChild(btn);
+  }
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2400);
+  // Give an actionable toast a little longer so there's time to tap it.
+  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, actionLabel ? 4500 : 2400);
 }
 
 function buildSMButtons() {
@@ -549,7 +566,16 @@ function nextRound() {
   S.round++;
   document.getElementById('cur-round').textContent = 'Round ' + S.round;
   save();
-  toast('▸ Round ' + S.round);
+  // Offer an Undo in case the button was tapped by accident.
+  toast('▸ Round ' + S.round, 'Undo', undoRound);
+}
+
+function undoRound() {
+  if (S.round <= 1) return;
+  S.round--;
+  document.getElementById('cur-round').textContent = 'Round ' + S.round;
+  save();
+  toast('Back to Round ' + S.round);
 }
 
 function undoScore(idx) {
