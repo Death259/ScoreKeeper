@@ -610,6 +610,9 @@ function deleteFromSetup(i) { S.gameHistory.splice(i,1); save(); renderSetupHOF(
 
 function endGame() {
   closeModal();
+  // The game is over: kill the timer/alarm so it can't keep ticking afterward.
+  timerStop();
+  stopAlarm();
   var sorted = S.teams.slice().sort(function(a,b){ return S.lowScoreWins ? a.score - b.score : b.score - a.score; });
   var topScore = sorted[0].score;
   var winners  = sorted.filter(function(t){ return t.score === topScore; });
@@ -625,13 +628,17 @@ function endGame() {
     standings:    sorted.map(function(t){ return {name:t.name, score:t.score}; })
   };
   S.gameHistory.unshift(record);
-  S.teams.forEach(function(t){ t.score=0; t.history=[]; });
+  // Conclude the game and return to setup. The finished board no longer lingers,
+  // so it can't be ended a second time and recorded again with zeroed scores.
+  voiceOn = false;
+  if (typeof annyang !== 'undefined') annyang.abort();
+  S.view = 'setup';
+  S.gameName = '';
+  S.teams = [];
   S.round = 1;
   save();
-  document.getElementById('cur-round').textContent = 'Round 1';
-  renderTeams();
-  renderHOF();
-  showTab('hof');
+  document.getElementById('game-name-input').value = '';
+  renderSetupScreen();
   if (isTie) {
     toast('🤝 It\'s a tie — ' + record.winner + '!');
     launchConfetti(['#4cc9f0','#a855f7','#fffffe','#ffd60a']);
@@ -665,7 +672,7 @@ function goToSetup() {
 
 var MODAL_CONFIGS = {
   reset:   { title:'Reset Scores?',   body:'All current scores will be wiped. This cannot be undone.',                                  label:'Reset',       cls:'btn-danger',  action:resetGame },
-  end:     { title:'End Game?',        body:'Winner is saved to Hall of Fame and scores reset for a new round.',                          label:'End Game',    cls:'btn-success', action:endGame   },
+  end:     { title:'End Game?',        body:'The winner is saved to the Hall of Fame and the game returns to setup.',                     label:'End Game',    cls:'btn-success', action:endGame   },
   newgame: { title:'New Game?',        body:'Return to setup to pick teams and a new game name. Current scores will be lost.',            label:'Go to Setup', cls:'btn-accent',  action:goToSetup }
 };
 
