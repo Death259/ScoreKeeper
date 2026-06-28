@@ -629,9 +629,9 @@ function isGameEndable() {
 function endGame() {
   closeModal();
   if (!isGameEndable()) { toast('Add some points before ending the game'); return; }
-  // The game is over: kill the timer/alarm so it can't keep ticking afterward.
-  timerStop();
-  stopAlarm();
+  // The game is over: stop and reset the timer (also clears any active alarm)
+  // so the board is fresh for the next game.
+  timerReset();
   var sorted = S.teams.slice().sort(function(a,b){ return S.lowScoreWins ? a.score - b.score : b.score - a.score; });
   var topScore = sorted[0].score;
   var winners  = sorted.filter(function(t){ return t.score === topScore; });
